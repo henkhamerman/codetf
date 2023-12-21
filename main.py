@@ -5,8 +5,8 @@ from datasets import DatasetDict, Dataset
 from tqdm import tqdm
 import torch
 
-checkpoint = 'Salesforce/codet5p-770m'  # Salesforce/codet5p-770m(-py)
-tokenizer = AutoTokenizer.from_pretrained(checkpoint)  # 'Salesforce/codet5-small'
+checkpoint = 'Salesforce/codet5p-770m'  # ALT: Salesforce/codet5p-770m(-py) or Salesforce/codet5-small
+tokenizer = AutoTokenizer.from_pretrained(checkpoint)
 model = AutoModelForSeq2SeqLM.from_pretrained(checkpoint,
                                               torch_dtype=torch.float32,
                                               trust_remote_code=True)
@@ -15,62 +15,48 @@ bleu_metric = evaluate.load("bleu")
 em_metric = evaluate.load("exact_match")
 
 
+# adds prompt + tokenizes input
 def preprocess(samples, prefix=""):
     model_inputs = tokenizer([prefix + sample for sample in samples["buggy"]], return_tensors="pt", padding=True, truncation=True)
-    labels = tokenizer(text_target=samples["fix"], max_length=128, truncation=True)
+    labels = tokenizer(text_target=samples["fix"], max_length=384, truncation=True)
     model_inputs["labels"] = labels["input_ids"]
     return model_inputs
 
-
+# loading in files
 with open("test-buggy.txt", "r") as file:
     buggy_data = file.readlines()[:3]
 
 with open("test-fixed.txt", "r") as file:
     fixed_data = file.readlines()[:3]
 
-data_dict = {  # Hugging Face Dataset
+# max_length_buggy = max([len(tokenizer(line)) for line in buggy_data])
+# max_length_fixed = max([len(tokenizer(line)) for line in fixed_data])
+
+
+data_dict = {
     "buggy": buggy_data,
     "fix": fixed_data
 }
-dataset = Dataset.from_dict(data_dict)
+
+dataset = Dataset.from_dict(data_dict)  # create Hugging Face Dataset
 dataset_dict = dataset.train_test_split(test_size=0.1)
 
-tokenized_datasets = dataset_dict.map(preprocess, batched=True)
+tokenized_datasets = dataset_dict.map(preprocess, batched=True)  # convert the whole dataset into tokens at once
 
-# generated_code = []  # generated code for each example will be stored here
-
-# current_dataset = dataset_dict["test"]
-
-# for i, example in tqdm(enumerate(current_dataset["buggy"]), total=len(current_dataset["buggy"]), desc=f"Evaluating model on test set"):
-#     encoding = preprocess(example, prompt)
-#     out = model.generate(**encoding, max_new_tokens=150)
-#     generated_code_decoded = tokenizer.decode(out[0], skip_special_tokens=True)
-#     generated_code.append(generated_code_decoded)
-
-# # references for evaluation
-# references_bleu = [ref.strip() for ref in dataset_dict["test"]["fix"]]
-# references_em = [ref.strip() for ref in dataset_dict["test"]["fix"]]
-#
-# # Compute BLEU and EM scores
-# bleu_results = bleu_metric.compute(predictions=[generated_code], references=[references_bleu])
-# em_results = em_metric.compute(predictions=generated_code, references=references_em)
-#
-# print(f"BLEU score: {bleu_results}")
-# print(f"EM score: {em_results}")
 
 def compute_metrics(p):
-    # Decode model predictions
     generated_code = tokenizer.batch_decode(p.predictions, skip_special_tokens=True)
 
-    # references for evaluation
+    # BLEU and EM need references for evaluation
     references_bleu = [ref.strip() for ref in dataset_dict["test"]["fix"]]
     references_em = [ref.strip() for ref in dataset_dict["test"]["fix"]]
 
-    # Compute BLEU and EM scores using evaluate module
+    # compute BLEU and EM scores using Hugging Face's Evaluate module
     bleu_score = bleu_metric.compute(predictions=generated_code, references=references_bleu)
     em_score = em_metric.compute(predictions=generated_code, references=references_em)
 
     return {"bleu_score": bleu_score, "em_score": em_score}
+
 
 batch_size = 16
 model_name = checkpoint.split("/")[-1]
@@ -84,7 +70,7 @@ args = Seq2SeqTrainingArguments(
     save_total_limit=3,
     num_train_epochs=1,
     predict_with_generate=True,
-    fp16=False,  # set to false
+    fp16=False,  # set to True if GPU supports Mixed Precision training
     push_to_hub=False,
 )
 
@@ -101,3 +87,21 @@ trainer = Seq2SeqTrainer(
 )
 
 trainer.train()
+
+# for epoch in range(int(args.num_train_epochs)):
+#     epoch_iterator = tqdm(trainer.get_train_dataloader(), desc=f"Epoch {epoch}")
+#
+#     for step, inputs in enumerate(epoch_iterator):
+#         trainer.train()
+#         epoch_iterator.set_postfix(samples_processed=(step + 1) * args.per_device_train_batch_size)
+#
+# # Final evaluation after fine-tuning
+
+final_eval_metrics = trainer.evaluate()
+print("Final Evaluation Metrics:")
+for key, value in final_eval_metrics.items():
+    if isinstance(value, dict):
+        for subkey, subvalue in value.items():
+            print(f"{key}_{subkey} = {subvalue}")
+    else:
+        print(f"{key} = {value}")
