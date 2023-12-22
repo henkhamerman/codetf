@@ -55,3 +55,13 @@ em_results = em_metric.compute(predictions=generated_code, references=references
 
 print(f"BLEU score: {bleu_results}")
 print(f"EM score: {em_results}")
+
+
+# for epoch in range(int(args.num_train_epochs)):
+#     epoch_iterator = tqdm(trainer.get_train_dataloader(), desc=f"Epoch {epoch}")
+#
+#     for step, inputs in enumerate(epoch_iterator):
+#         trainer.train()
+#         epoch_iterator.set_postfix(samples_processed=(step + 1) * args.per_device_train_batch_size)
+#
+# # Final evaluation after fine-tuning
