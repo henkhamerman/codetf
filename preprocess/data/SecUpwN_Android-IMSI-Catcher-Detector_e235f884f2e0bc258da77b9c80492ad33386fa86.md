@@ -1,20 +1,5 @@
-
-Refactoring Type: Extract Method
-
-Refactoring Type: Extract Method
-
-Refactoring Type: Extract Method
-
-Refactoring Type: Extract Method
-
-Refactoring Type: Extract Method
-
-Refactoring Type: Extract Method
-
-Refactoring Type: Extract Method
-
-
-File: app/src/main/java/com/SecUpwN/AIMSICD/adapters/AIMSICDDbAdapter.java
+Refactoring Types: ['Extract Method']
+AIMSICD/adapters/AIMSICDDbAdapter.java
 /* Android IMSI-Catcher Detector | (c) AIMSICD Privacy Project
  * -----------------------------------------------------------
  * LICENSE:  http://git.io/vki47 | TERMS:  http://git.io/vki4o

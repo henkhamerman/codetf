@@ -1,69 +1,119 @@
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+import numpy as np
 from transformers import RobertaTokenizer, T5ForConditionalGeneration, T5Tokenizer, AutoTokenizer, \
-    AutoModelForSeq2SeqLM, Seq2SeqTrainingArguments, Seq2SeqTrainer, DataCollatorForSeq2Seq, AutoConfig
+    AutoModelForSeq2SeqLM, Seq2SeqTrainingArguments, Seq2SeqTrainer, DataCollatorForSeq2Seq, AutoConfig, \
+    DataCollatorWithPadding, TrainingArguments, Trainer, AutoModelForSequenceClassification
 import evaluate
-from datasets import DatasetDict, Dataset
-from tqdm import tqdm
+from datasets import DatasetDict, Dataset, concatenate_datasets
 import torch
+import os
+
+unique_refactoring_types = ["Extract Method", "Inline Method", "Rename Package", "Move Method", "Move Class", "Move Attribute", "Pull Up Method",
+                            "Pull Up Attribute", "Push Down Method", "Push Down Attribute", "Extract Interface", "Extract Superclass"]  # 12
+label2id = {label: i for i, label in enumerate(unique_refactoring_types)}
+id2label = {i: label for i, label in enumerate(unique_refactoring_types)}
 
 checkpoint = 'Salesforce/codet5p-770m'  # ALT: Salesforce/codet5p-770m(-py) or Salesforce/codet5-small
 tokenizer = AutoTokenizer.from_pretrained(checkpoint)
-model = AutoModelForSeq2SeqLM.from_pretrained(checkpoint,
+model = AutoModelForSequenceClassification.from_pretrained(checkpoint,
                                               torch_dtype=torch.float32,
-                                              trust_remote_code=True)
-prompt = "Refactor this Java method such that it is correct: \n"
-bleu_metric = evaluate.load("bleu")
-em_metric = evaluate.load("exact_match")
+                                              trust_remote_code=True,
+                                              num_labels=len(unique_refactoring_types),
+                                              id2label=id2label,
+                                              label2id=label2id,)
+accuracy = evaluate.load("accuracy")
+prompt = ""
+max_length = 32
 
 
 # adds prompt + tokenizes input
 def preprocess(samples, prefix=""):
-    model_inputs = tokenizer([prefix + sample for sample in samples["buggy"]], return_tensors="pt", padding=True, truncation=True)
-    labels = tokenizer(text_target=samples["fix"], max_length=384, truncation=True)
-    model_inputs["labels"] = labels["input_ids"]
+    input_tokenized = tokenizer(
+        [prefix + sample for sample in samples["code"]],
+        return_tensors="pt",
+        truncation=True,
+        padding="max_length",
+        max_length=max_length,
+    )
+
+    model_inputs = {
+        "input_ids": input_tokenized["input_ids"],
+        "attention_mask": input_tokenized["attention_mask"],
+        "labels": torch.tensor(samples["labels"], dtype=torch.long),
+    }
+
     return model_inputs
 
+
 # loading in files
-with open("test-buggy.txt", "r") as file:
-    buggy_data = file.readlines()[:50]
+data_dir = 'preprocess/data'
+examples = {"labels": [], "code": []}
+file_count = 0
 
-with open("test-fixed.txt", "r") as file:
-    fixed_data = file.readlines()[:50]
+for filename in os.listdir(data_dir):
+    if filename.endswith(".md"):
+        filepath = os.path.join(data_dir, filename)
 
-# determining max_length
-# max_length_buggy = max([len(tokenizer(line)) for line in buggy_data])
-# max_length_fixed = max([len(tokenizer(line)) for line in fixed_data])
+        with open(filepath, "r", encoding="utf-8") as file:
+            lines = file.readlines()
+            if not 400 > len(lines) > 3:
+                pass
+                # print(f"Skipping empty/big file: {filepath}")
+            else:
+                labels_line = lines[0].strip()
+                labels = eval(labels_line.split(":")[1].strip())  # assumes valid Python expression
+
+                code = "".join(lines[1:])
+                examples["labels"].append(label2id[labels[0]])  # TODO: now we only use the first label
+                examples["code"].append(code)
+                file_count += 1
+print(f"Used {file_count} files for fine-tuning/evaluation")
 
 
-data_dict = {
-    "buggy": buggy_data,
-    "fix": fixed_data
-}
+def compute_max_length():
+    max_input_length = 0
+    for code in examples["code"]:
+        tokens = tokenizer(code, truncation=True, max_length=max_length)
+        max_input_length = max(max_input_length, len(tokens['input_ids']))
+    return max_input_length
 
-dataset = Dataset.from_dict(data_dict)  # create Hugging Face Dataset
-dataset_dict = dataset.train_test_split(test_size=0.1)
+
+# create Hugging Face Dataset
+dataset = Dataset.from_dict(examples)
+dataset_dict = dataset.train_test_split(test_size=0.3)
 
 tokenized_datasets = dataset_dict.map(preprocess, batched=True)  # convert the whole dataset into tokens at once
 
 
-# will only be used at Evaluation, takes an EvalPrediction and returns a dict{string:metric)
+# will only be used at evaluation, takes an EvalPrediction and returns a dict{string:metric)
 def compute_metrics(p):
-    generated_code = tokenizer.batch_decode(p.predictions, skip_special_tokens=True)
+    predictions = np.argmax(p.predictions[0], axis=1)  # Assuming the first prediction is the main one
+    true_labels = p.label_ids
 
-    # BLEU and EM need references for evaluation
-    references_bleu = [ref.strip() for ref in dataset_dict["test"]["fix"]]
-    references_em = [ref.strip() for ref in dataset_dict["test"]["fix"]]
+    # accuracy, precision, recall, F1-score
+    accuracy = accuracy_score(true_labels, predictions)
+    precision, recall, f1, _ = precision_recall_fscore_support(true_labels, predictions, average='weighted', zero_division=0)
 
-    # compute BLEU and EM scores using Hugging Face's Evaluate module
-    bleu_score = bleu_metric.compute(predictions=generated_code, references=references_bleu)
-    em_score = em_metric.compute(predictions=generated_code, references=references_em)
+    print("Predicted Labels:", predictions)
+    print("True Labels:", true_labels)
 
-    return {"bleu_score": bleu_score, "em_score": em_score}
+    print(f"Accuracy: {accuracy:.4f}")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall: {recall:.4f}")
+    print(f"F1-score: {f1:.4f}")
+
+    return {
+        'accuracy': accuracy,
+        'precision': precision,
+        'recall': recall,
+        'f1': f1,
+    }
 
 
 def main(finetune):
-    batch_size = 16
+    batch_size = 8
     model_name = checkpoint.split("/")[-1]
-    args = Seq2SeqTrainingArguments(
+    args = TrainingArguments(
         f"{model_name}-finetuned-bugs2fix",
         evaluation_strategy="epoch",
         learning_rate=2e-5,
@@ -72,18 +122,18 @@ def main(finetune):
         weight_decay=0.01,
         save_total_limit=3,
         num_train_epochs=1,
-        predict_with_generate=True,
         fp16=False,  # set to True if GPU supports Mixed Precision training
         push_to_hub=False,
     )
 
-    data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
+    data_collator = DataCollatorWithPadding(tokenizer)
+    combined_eval_dataset = tokenized_datasets["train"] if not finetune else tokenized_datasets["test"]
 
-    trainer = Seq2SeqTrainer(
-        model,
-        args,
+    trainer = Trainer(
+        model=model,
+        args=args,
         train_dataset=tokenized_datasets["train"],
-        eval_dataset=tokenized_datasets["test"],
+        eval_dataset=combined_eval_dataset,
         data_collator=data_collator,
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
@@ -92,17 +142,9 @@ def main(finetune):
     if finetune:
         trainer.train()
 
-    print(trainer.loss)
-
-    final_eval_metrics = trainer.evaluate()
-    print("Final Evaluation Metrics:")
-    for key, value in final_eval_metrics.items():
-        if isinstance(value, dict):
-            for subkey, subvalue in value.items():
-                print(f"{key}_{subkey} = {subvalue}")
-        else:
-            print(f"{key} = {value}")
+    trainer.evaluate()
 
 
 if __name__ == "__main__":
-    main(finetune=True)  # set to False for evaluation only
+    print(f"Max token length of files: {compute_max_length()}")
+    main(finetune=False)  # set to False for evaluation only

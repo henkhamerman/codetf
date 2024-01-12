@@ -1,10 +1,9 @@
 from urllib.parse import urlparse
-
 import requests
 import base64
 import json
 
-# put your GitHub API Token here, rate limit = 5000 req/h
+# put GitHub API Token here, rate limit = 5000 req/h
 access_token = ""
 
 
@@ -17,8 +16,7 @@ def get_commit_details(repo_url, commit_sha):
         commit_data = response.json()
         return commit_data
     else:
-        print(f"Failed to fetch commit details. Status code: {response.status_code}")
-        print(response.reason)
+        print(f"Failed to fetch commit details. Status code: {response.status_code}, Message: {response.reason}")
         return None
 
 
@@ -37,33 +35,29 @@ def get_file_content(repo_url, commit_sha, file_path):
         return None
 
 
-def extract_pre_commit_code(owner, repo, commit_sha, output_file_path):
-    repo_url = f"{owner}/{repo}"
-    commit_details = get_commit_details(repo_url, commit_sha)
+def extract_pre_commit_code(commit_details, output_file_path):
+    parent_commit_sha = commit_details['parents'][0]['sha']  # use parent commit to extract pre-commit source code
 
-    if commit_details is not None:
-        parent_commit_sha = commit_details['parents'][0]['sha']  # TODO: assumes a single parent for simplicity
+    current_commit_files = commit_details['files']
 
-        current_commit_files = commit_details['files']
+    with open(output_file_path, 'ab') as output_file:
+        for file_change in current_commit_files:
+            file_path = file_change['filename']
+            if not file_path.endswith('.java'):
+                continue  # we only want to make predictions for Java files
 
-        with open(output_file_path, 'ab') as output_file:
-            for file_change in current_commit_files:
-                file_path = file_change['filename']
-                if not file_path.endswith('.java'):
-                    continue  # we only want to make predictions for Java files
+            parent_content_base64 = get_file_content(repo_url, parent_commit_sha, file_path)
 
-                parent_content_base64 = get_file_content(repo_url, parent_commit_sha, file_path)
+            if parent_content_base64 is not None:
+                parent_content = base64.b64decode(parent_content_base64).decode('utf-8', errors='replace')
 
-                if parent_content_base64 is not None:
-                    parent_content = base64.b64decode(parent_content_base64).decode('utf-8', errors='replace')
+                output_file.write(f"\n\nFile: {file_path}\n".encode('utf-8'))
+                output_file.write(parent_content.encode('utf-8'))
+            else:
+                pass
+                # print(f"Skipping file {file_path}: file not present in parent commit.")
 
-                    output_file.write(f"\n\nFile: {file_path}\n".encode('utf-8'))
-                    output_file.write(parent_content.encode('utf-8'))
-                else:
-                    pass
-                    # print(f"Skipping file {file_path}: file not present in parent commit.")
-
-            print(f"Wrote file: {output_file.name}")
+        print(f"Wrote file: {output_file.name}")
 
 
 if __name__ == "__main__":
@@ -75,17 +69,21 @@ if __name__ == "__main__":
         parsed_url = urlparse(repo_url)
         owner, repo = parsed_url.path.lstrip('/').split('/', 1)
         repo = repo.rstrip('.git')
+        repo_url = f"{owner}/{repo}"
         commit_sha = entry['sha1']
         output_file_path = f"data/{owner}_{repo}_{commit_sha}.md"
 
         # annotate the commit with refactoring types, these will server as the labels
-        with open(output_file_path, 'ab') as output_file:
+        with open(output_file_path, 'wb') as output_file:
+            refactoring_type_set = set()
             for refactoring in entry.get('refactorings', []):
-                refactoring_type = refactoring['type']
-                refactoring_type_str = f"\nRefactoring Type: {refactoring_type}\n"
-                output_file.write(refactoring_type_str.encode('utf-8'))
+                refactoring_type_set.add(refactoring['type'])
+            refactoring_type_str = f"Refactoring Types: {[r_type for r_type in refactoring_type_set]}\n"
 
-        extract_pre_commit_code(owner, repo, commit_sha, output_file_path)
+            commit_details = get_commit_details(repo_url, commit_sha)
+            if commit_details is not None:  # extract pre-commit code only if commit details are obtained
+                output_file.write(refactoring_type_str.encode('utf-8'))
+                extract_pre_commit_code(commit_details, output_file_path)
 
 
 

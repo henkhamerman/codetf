@@ -1,0 +1,1749 @@
+Refactoring Types: ['Rename Package']
+n/java/com/joanzapata/android/AboutActivity.java
+/**
+ * Copyright 2013 Joan Zapata
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * It uses FontAwesome font, licensed under OFL 1.1, which is compatible
+ * with this library's license.
+ *
+ *     http://scripts.sil.org/cms/scripts/render_download.php?format=file&media_id=OFL_plaintext&filename=OFL.txt
+ */
+package com.joanzapata.android;
+
+import android.content.Intent;
+import android.graphics.drawable.Drawable;
+import android.net.Uri;
+import android.widget.TextView;
+import com.actionbarsherlock.app.SherlockActivity;
+import com.actionbarsherlock.view.Menu;
+import com.googlecode.androidannotations.annotations.AfterViews;
+import com.googlecode.androidannotations.annotations.Click;
+import com.googlecode.androidannotations.annotations.EActivity;
+import com.googlecode.androidannotations.annotations.OptionsItem;
+import com.googlecode.androidannotations.annotations.OptionsMenu;
+import com.googlecode.androidannotations.annotations.ViewById;
+import com.joanzapata.android.iconify.IconDrawable;
+import com.joanzapata.android.icons.sample.R;
+
+import static com.joanzapata.android.iconify.Iconify.IconValue;
+import static com.joanzapata.android.iconify.Iconify.IconValue.*;
+import static com.joanzapata.android.utils.IconUtils.*;
+
+@EActivity(R.layout.activity_about)
+@OptionsMenu(R.menu.menu_about)
+public class AboutActivity extends SherlockActivity {
+
+    @ViewById
+    protected TextView bullet1, bullet2, bullet3, bullet4, bulletTwitter;
+
+    @AfterViews
+    protected void init() {
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        bullet1.setCompoundDrawablesWithIntrinsicBounds(getIcon(fa_android), null, null, null);
+        bullet2.setCompoundDrawablesWithIntrinsicBounds(getIcon(fa_code), null, null, null);
+        bullet3.setCompoundDrawablesWithIntrinsicBounds(getIcon(fa_flag), null, null, null);
+        bullet4.setCompoundDrawablesWithIntrinsicBounds(getIcon(fa_globe), null, null, null);
+        bulletTwitter.setCompoundDrawablesWithIntrinsicBounds(getIcon(fa_twitter), null, null, null);
+        setTypefaces(getRobotoTypeface(this), bullet1, bullet2, bullet3, bullet4, bulletTwitter);
+    }
+
+    @Override
+    @OptionsItem(android.R.id.home)
+    public void onBackPressed() {
+        super.onBackPressed();
+    }
+
+    @OptionsItem(R.id.share)
+    @Click(R.id.share)
+    public void onShareClicked() {
+        Intent intent = new Intent(Intent.ACTION_SEND);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_TEXT, getString(R.string.share_action));
+        this.startActivity(Intent.createChooser(intent, "Share..."));
+    }
+
+    @Click(R.id.website)
+    public void onWebsiteClicked() {
+        String url = "http://joanzapata.com/android-iconify";
+        Intent i = new Intent(Intent.ACTION_VIEW);
+        i.setData(Uri.parse(url));
+        startActivity(i);
+    }
+
+    @Click(R.id.bulletTwitter)
+    public void onTwitterClicked() {
+        String url = "https://twitter.com/JoanZap";
+        Intent i = new Intent(Intent.ACTION_VIEW);
+        i.setData(Uri.parse(url));
+        startActivity(i);
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        Drawable aboutDrawable = new IconDrawable(this, IconValue.fa_share)
+                .colorRes(R.color.ab_item)
+                .actionBarSize();
+        menu.findItem(R.id.share).setIcon(aboutDrawable);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    private Drawable getIcon(IconValue iconValue) {
+        return new IconDrawable(this, iconValue).colorRes(R.color.text).sizeDp(40);
+    }
+
+}
+
+
+File: android-iconify-sample/src/main/java/com/joanzapata/android/FontAwesomeFragment.java
+package com.joanzapata.android;
+
+import android.widget.GridView;
+import android.widget.TextView;
+import com.actionbarsherlock.app.SherlockFragment;
+import com.googlecode.androidannotations.annotations.AfterViews;
+import com.googlecode.androidannotations.annotations.EFragment;
+import com.googlecode.androidannotations.annotations.ItemClick;
+import com.googlecode.androidannotations.annotations.ViewById;
+import com.joanzapata.android.iconify.Iconify;
+import com.joanzapata.android.icons.sample.R;
+
+import static com.joanzapata.android.utils.IconUtils.sort;
+import static java.lang.String.format;
+import static java.util.Arrays.asList;
+
+@EFragment(R.layout.fragment_iconlist)
+public class FontAwesomeFragment extends SherlockFragment {
+
+    @ViewById
+    protected GridView gridView;
+
+    @AfterViews
+    void afterViews() {
+        gridView.setAdapter(new QuickAdapter<Iconify.IconValue>(getActivity(), R.layout.item, sort(asList(Iconify.IconValue.values()))) {
+            @Override
+            protected void convert(BaseAdapterHelper helper, Iconify.IconValue iconValue) {
+                String iconName = iconValue.toString().replaceAll("_", "-");
+                helper.setText(R.id.iconText, format("{%s}  %s", iconName, iconName));
+                Iconify.addIcons((TextView) helper.getView(R.id.iconText));
+            }
+        });
+    }
+
+    @ItemClick
+    void gridView(Iconify.IconValue iconValue) {
+        IconDialogFragment_.builder()
+                .iconValue(iconValue)
+                .build()
+                .show(getFragmentManager(), IconDialogFragment.class.getSimpleName());
+    }
+
+}
+
+
+File: android-iconify-sample/src/main/java/com/joanzapata/android/FontHelloFragment.java
+package com.joanzapata.android;
+
+import android.widget.GridView;
+import android.widget.TextView;
+import com.actionbarsherlock.app.SherlockFragment;
+import com.googlecode.androidannotations.annotations.AfterViews;
+import com.googlecode.androidannotations.annotations.EFragment;
+import com.googlecode.androidannotations.annotations.ViewById;
+import com.joanzapata.android.iconify.Iconify;
+import com.joanzapata.android.icons.sample.R;
+
+import static com.joanzapata.android.utils.IconUtils.sort;
+import static java.lang.String.format;
+import static java.util.Arrays.asList;
+
+@EFragment(R.layout.fragment_iconlist)
+public class FontHelloFragment extends SherlockFragment {
+
+    @ViewById
+    protected GridView gridView;
+
+    @AfterViews
+    void afterViews() {
+        gridView.setAdapter(new QuickAdapter<FontHelloValue>(getActivity(), R.layout.item, sort(asList(FontHelloValue.values()))) {
+            @Override
+            protected void convert(BaseAdapterHelper helper, FontHelloValue iconValue) {
+                String iconName = iconValue.toString().replaceAll("_", "-");
+                helper.setText(R.id.iconText, format("{%s}  %s", iconName, iconName));
+                Iconify.addIcons(iconValue, (TextView) helper.getView(R.id.iconText));
+            }
+        });
+    }
+
+}
+
+
+File: android-iconify-sample/src/main/java/com/joanzapata/android/FontHelloValue.java
+package com.joanzapata.android;
+
+import com.joanzapata.android.iconify.BaseIconValue;
+
+public enum FontHelloValue implements BaseIconValue {
+    hello_emo_happy('\ue800'),
+    hello_emo_wink('\ue801'),
+    hello_emo_wink2('\ue813'),
+    hello_emo_unhappy('\ue802'),
+    hello_emo_sleep('\ue803'),
+    hello_emo_thumbsup('\ue804'),
+    hello_emo_devil('\ue805'),
+    hello_emo_surprised('\ue806'),
+    hello_emo_tongue('\ue807'),
+    hello_emo_coffee('\ue808'),
+    hello_emo_sunglasses('\ue809'),
+    hello_emo_displeased('\ue80a'),
+    hello_emo_beer('\ue80b'),
+    hello_emo_grin('\ue80c'),
+    hello_emo_angry('\ue80d'),
+    hello_emo_saint('\ue80e'),
+    hello_emo_cry('\ue80f'),
+    hello_emo_shoot('\ue810'),
+    hello_emo_squint('\ue811'),
+    hello_emo_laugh('\ue812'),
+    hello_spin1('\ue830'),
+    hello_spin2('\ue831'),
+    hello_spin3('\ue832'),
+    hello_spin4('\ue834'),
+    hello_spin5('\ue838'),
+    hello_spin6('\ue839'),
+    hello_firefox('\ue840'),
+    hello_chrome('\ue841'),
+    hello_opera('\ue842'),
+    hello_ie('\ue843'),
+    hello_crown('\ue844'),
+    hello_crown_plus('\ue845'),
+    hello_crown_minus('\ue846'),
+    hello_marquee('\ue847');
+
+    private char character;
+
+    FontHelloValue(char character) {
+        this.character = character;
+    }
+
+    @Override
+    public char character() {
+        return character;
+    }
+
+    @Override
+    public String getTtfFilename() {
+        return "asset:fontelico.ttf";
+    }
+
+    @Override
+    public String getPrefix() {
+        return "hello";
+    }
+
+    @Override
+    public FontHelloValue iconFrom(String value) {
+        return FontHelloValue.valueOf(value);
+    }
+}
+
+
+File: android-iconify-sample/src/main/java/com/joanzapata/android/IconDialogFragment.java
+/**
+ * Copyright 2013 Joan Zapata
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * It uses FontAwesome font, licensed under OFL 1.1, which is compatible
+ * with this library's license.
+ *
+ *     http://scripts.sil.org/cms/scripts/render_download.php?format=file&media_id=OFL_plaintext&filename=OFL.txt
+ */
+package com.joanzapata.android;
+
+import android.support.v4.app.DialogFragment;
+import android.view.Window;
+import android.widget.TextView;
+import com.actionbarsherlock.app.SherlockDialogFragment;
+import com.googlecode.androidannotations.annotations.*;
+import com.joanzapata.android.iconify.Iconify;
+import com.joanzapata.android.icons.sample.R;
+import com.joanzapata.android.utils.IconUtils;
+
+import static com.joanzapata.android.iconify.Iconify.IconValue;
+import static com.joanzapata.android.utils.IconUtils.unicodeValue;
+
+@EFragment(R.layout.dialog_icon)
+public class IconDialogFragment extends SherlockDialogFragment {
+
+    @FragmentArg
+    protected IconValue iconValue;
+
+    @ViewById
+    protected TextView dialogBigIcon, dialogText, dialogDescription;
+
+    @AfterViews
+    protected void init() {
+        getDialog().getWindow().requestFeature(Window.FEATURE_NO_TITLE);
+        final String text = iconValue.formattedName();
+        dialogBigIcon.setText(text);
+        dialogText.setText(iconValue.name());
+        Iconify.addIcons(dialogBigIcon);
+        dialogDescription.setText(unicodeValue(iconValue));
+    }
+
+}
+
+
+File: android-iconify-sample/src/main/java/com/joanzapata/android/IconListActivity.java
+/**
+ * Copyright 2013 Joan Zapata
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * It uses FontAwesome font, licensed under OFL 1.1, which is compatible
+ * with this library's license.
+ *
+ *     http://scripts.sil.org/cms/scripts/render_download.php?format=file&media_id=OFL_plaintext&filename=OFL.txt
+ */
+package com.joanzapata.android;
+
+import android.graphics.drawable.Drawable;
+import android.support.v4.app.FragmentTransaction;
+import com.actionbarsherlock.app.ActionBar;
+import com.actionbarsherlock.app.ActionBar.Tab;
+import com.actionbarsherlock.app.SherlockFragmentActivity;
+import com.actionbarsherlock.view.Menu;
+import com.googlecode.androidannotations.annotations.AfterViews;
+import com.googlecode.androidannotations.annotations.EActivity;
+import com.googlecode.androidannotations.annotations.OptionsItem;
+import com.googlecode.androidannotations.annotations.OptionsMenu;
+import com.joanzapata.android.iconify.IconDrawable;
+import com.joanzapata.android.icons.sample.R;
+
+import static com.joanzapata.android.iconify.Iconify.IconValue;
+
+@EActivity(R.layout.activity_iconlist)
+@OptionsMenu(R.menu.menu_iconlist)
+public class IconListActivity extends SherlockFragmentActivity implements ActionBar.TabListener {
+
+    @AfterViews
+    void afterViews() {
+        ActionBar actionBar = getSupportActionBar();
+        actionBar.setIcon(R.drawable.actionbar_logo);
+        actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS);
+
+        actionBar.addTab(actionBar.newTab()
+                .setText("FontAwesome")
+                .setTabListener(this));
+        actionBar.addTab(actionBar.newTab()
+                .setText("Fontelico")
+                .setTabListener(this));
+        actionBar.selectTab(actionBar.getTabAt(0));
+    }
+
+    @OptionsItem(R.id.about)
+    void onAboutClicked() {
+        AboutActivity_.intent(this).start();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        Drawable aboutDrawable = new IconDrawable(this, IconValue.fa_question)
+                .colorRes(R.color.ab_item)
+                .actionBarSize();
+        menu.findItem(R.id.about).setIcon(aboutDrawable);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public void onTabSelected(Tab tab, FragmentTransaction ft) {
+        if (tab.getPosition() == 0) {
+            ft.replace(R.id.containerView, new FontAwesomeFragment_());
+        } else {
+            ft.replace(R.id.containerView, new FontHelloFragment_());
+        }
+    }
+
+    @Override
+    public void onTabUnselected(Tab tab, FragmentTransaction ft) {
+    }
+
+    @Override
+    public void onTabReselected(Tab tab, FragmentTransaction ft) {
+    }
+}
+
+
+File: android-iconify-sample/src/main/java/com/joanzapata/android/utils/IconUtils.java
+/**
+ * Copyright 2013 Joan Zapata
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * It uses FontAwesome font, licensed under OFL 1.1, which is compatible
+ * with this library's license.
+ *
+ *     http://scripts.sil.org/cms/scripts/render_download.php?format=file&media_id=OFL_plaintext&filename=OFL.txt
+ */
+package com.joanzapata.android.utils;
+
+import android.content.Context;
+import android.graphics.Typeface;
+import android.widget.TextView;
+import com.joanzapata.android.iconify.BaseIconValue;
+import com.joanzapata.android.iconify.Iconify;
+
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+
+import static java.lang.Integer.toHexString;
+
+public final class IconUtils {
+
+    private static Typeface typeface;
+
+    private IconUtils() {
+        // Prevents instantiation
+    }
+
+    public static <T extends BaseIconValue> List<T> sort(List<T> iconValues) {
+        Collections.sort(iconValues, new Comparator<T>() {
+            @Override
+            public int compare(T lhs, T rhs) {
+                return lhs.toString().compareTo(rhs.toString());
+            }
+        });
+        return iconValues;
+    }
+
+    public static String unicodeValue(Iconify.IconValue iconValue) {
+        return "\\u" + toHexString(iconValue.character() | 0x10000).substring(1);
+    }
+
+    public static Typeface getRobotoTypeface(Context context) {
+        if (typeface == null)
+            typeface = Typeface.createFromAsset(
+                    context.getApplicationContext().getAssets(),
+                    "Roboto-Light.ttf");
+        return typeface;
+    }
+
+    public static void setTypefaces(Typeface typeface, TextView... views) {
+        for (TextView view : views) {
+            view.setTypeface(typeface);
+        }
+    }
+}
+
+
+File: android-iconify/src/main/java/com/joanzapata/android/iconify/BaseIconValue.java
+package com.joanzapata.android.iconify;
+
+public interface BaseIconValue {
+
+    char character();
+
+    String getTtfFilename();
+
+    String getPrefix();
+
+    BaseIconValue iconFrom(String value);
+
+}
+
+
+File: android-iconify/src/main/java/com/joanzapata/android/iconify/IconDrawable.java
+/**
+ * Copyright 2013 Joan Zapata
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * It uses FontAwesome font, licensed under OFL 1.1, which is compatible
+ * with this library's license.
+ *
+ *     http://scripts.sil.org/cms/scripts/render_download.php?format=file&media_id=OFL_plaintext&filename=OFL.txt
+ */
+package com.joanzapata.android.iconify;
+
+import static com.joanzapata.android.iconify.Utils.convertDpToPx;
+import static com.joanzapata.android.iconify.Utils.isEnabled;
+import static java.lang.String.valueOf;
+import android.content.Context;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.ColorFilter;
+import android.graphics.Paint;
+import android.graphics.Rect;
+import android.graphics.drawable.Drawable;
+import android.text.TextPaint;
+
+/**
+ * Embed an icon into a Drawable that can be used as TextView icons, or ActionBar icons.
+ * <pre>
+ *     new IconDrawable(context, IconValue.icon_star)
+ *           .colorRes(R.color.white)
+ *           .actionBarSize();
+ * </pre>
+ * If you don't set the size of the drawable, it will use the size
+ * that is given to him. Note that in an ActionBar, if you don't
+ * set the size explicitly it uses 0, so please use actionBarSize().
+ */
+public class IconDrawable extends Drawable {
+
+    public static final int ANDROID_ACTIONBAR_ICON_SIZE_DP = 24;
+
+    private final Context context;
+
+    private final BaseIconValue icon;
+
+    private TextPaint paint;
+
+    private int size = -1;
+
+    private int alpha = 255;
+
+    /**
+     * Create an IconDrawable.
+     * @param context Your activity or application context.
+     * @param icon    The icon you want this drawable to display.
+     */
+    public IconDrawable(Context context, BaseIconValue icon) {
+        this.context = context;
+        this.icon = icon;
+        paint = new TextPaint();
+        paint.setTypeface(Iconify.getTypeface(context, icon.getTtfFilename()));
+        paint.setStyle(Paint.Style.FILL);
+        paint.setTextAlign(Paint.Align.CENTER);
+        paint.setUnderlineText(false);
+        paint.setColor(Color.BLACK);
+        paint.setAntiAlias(true);
+    }
+
+    /**
+     * Set the size of this icon to the standard Android ActionBar.
+     * @return The current IconDrawable for chaining.
+     */
+    public IconDrawable actionBarSize() {
+        return sizeDp(ANDROID_ACTIONBAR_ICON_SIZE_DP);
+    }
+
+    /**
+     * Set the size of the drawable.
+     * @param dimenRes The dimension resource.
+     * @return The current IconDrawable for chaining.
+     */
+    public IconDrawable sizeRes(int dimenRes) {
+        return sizePx(context.getResources().getDimensionPixelSize(dimenRes));
+    }
+
+    /**
+     * Set the size of the drawable.
+     * @param size The size in density-independent pixels (dp).
+     * @return The current IconDrawable for chaining.
+     */
+    public IconDrawable sizeDp(int size) {
+        return sizePx(convertDpToPx(context, size));
+    }
+
+    /**
+     * Set the size of the drawable.
+     * @param size The size in pixels (px).
+     * @return The current IconDrawable for chaining.
+     */
+    public IconDrawable sizePx(int size) {
+        this.size = size;
+        setBounds(0, 0, size, size);
+        invalidateSelf();
+        return this;
+    }
+
+    /**
+     * Set the color of the drawable.
+     * @param color The color, usually from android.graphics.Color or 0xFF012345.
+     * @return The current IconDrawable for chaining.
+     */
+    public IconDrawable color(int color) {
+        paint.setColor(color);
+        invalidateSelf();
+        return this;
+    }
+
+    /**
+     * Set the color of the drawable.
+     * @param colorRes The color resource, from your R file.
+     * @return The current IconDrawable for chaining.
+     */
+    public IconDrawable colorRes(int colorRes) {
+        paint.setColor(context.getResources().getColor(colorRes));
+        invalidateSelf();
+        return this;
+    }
+
+    /**
+     * Set the alpha of this drawable.
+     * @param alpha The alpha, between 0 (transparent) and 255 (opaque).
+     * @return The current IconDrawable for chaining.
+     */
+    public IconDrawable alpha(int alpha) {
+        setAlpha(alpha);
+        invalidateSelf();
+        return this;
+    }
+
+    @Override
+    public int getIntrinsicHeight() {
+        return size;
+    }
+
+    @Override
+    public int getIntrinsicWidth() {
+        return size;
+    }
+
+    @Override
+    public void draw(Canvas canvas) {
+        Rect bounds = getBounds();
+        int height = bounds.height();
+        paint.setTextSize(height);
+        Rect textBounds = new Rect();
+        String textValue = valueOf(icon.character());
+        paint.getTextBounds(textValue, 0, 1, textBounds);
+        int textHeight = textBounds.height();
+        float textBottom = bounds.top + (height - textHeight) / 2f + textHeight - textBounds.bottom;
+        canvas.drawText(textValue, bounds.exactCenterX(), textBottom, paint);
+    }
+
+    @Override
+    public boolean isStateful() {
+        return true;
+    }
+
+    @Override
+    public boolean setState(int[] stateSet) {
+        int oldValue = paint.getAlpha();
+        int newValue = isEnabled(stateSet) ? alpha : alpha / 2;
+        paint.setAlpha(newValue);
+        return oldValue != newValue;
+    }
+
+    @Override
+    public void setAlpha(int alpha) {
+        this.alpha = alpha;
+        paint.setAlpha(alpha);
+    }
+
+    @Override
+    public void setColorFilter(ColorFilter cf) {
+        paint.setColorFilter(cf);
+    }
+
+    @Override
+    public void clearColorFilter() {
+        paint.setColorFilter(null);
+    }
+
+    @Override
+    public int getOpacity() {
+        return this.alpha;
+    }
+
+    /**
+     * Sets paint style.
+     * @param style to be applied
+     */
+    public void setStyle(Paint.Style style) {
+    	paint.setStyle(style);
+    }
+
+}
+
+
+File: android-iconify/src/main/java/com/joanzapata/android/iconify/Iconify.java
+/**
+ * Copyright 2013 Joan Zapata
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * It uses FontAwesome font, licensed under OFL 1.1, which is compatible
+ * with this library's license.
+ *
+ *     http://scripts.sil.org/cms/scripts/render_download.php?format=file&media_id=OFL_plaintext&filename=OFL.txt
+ */
+package com.joanzapata.android.iconify;
+
+import android.content.Context;
+import android.graphics.Typeface;
+import android.text.Spanned;
+import android.widget.TextView;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+import static android.text.Html.fromHtml;
+import static android.text.Html.toHtml;
+import static com.joanzapata.android.iconify.Utils.replaceIcons;
+import static com.joanzapata.android.iconify.Utils.resourceToFile;
+import static java.lang.String.valueOf;
+
+public final class Iconify {
+
+    private static final String FONTAWESOME_TTF_FILE = "res:fontawesome-webfont-4.4.0.ttf";
+
+    public static final String TAG = Iconify.class.getSimpleName();
+
+    private static Map<String, Typeface> typefaces = new HashMap<String, Typeface>();
+
+    private Iconify() {
+        // Prevent instantiation
+    }
+
+    /**
+     * Transform the given TextViews replacing {icon_xxx} texts with icons.
+     * @param textViews The TextViews to transform.
+     */
+    public static void addIcons(TextView... textViews) {
+        addIcons(IconValue.fa_500px, textViews);
+    }
+
+    public static <T extends Enum<T> & BaseIconValue> void addIcons(T icon, TextView... textViews) {
+        for (TextView textView : textViews) {
+            textView.setTypeface(getTypeface(textView.getContext(), icon.getTtfFilename()));
+            textView.setText(compute(icon, textView.getText()));
+        }
+    }
+
+    public static CharSequence compute(CharSequence charSequence) {
+        return compute(IconValue.fa_500px, charSequence);
+    }
+
+    public static <T extends Enum<T> & BaseIconValue> CharSequence compute(T icon, CharSequence charSequence) {
+        if (charSequence instanceof Spanned) {
+            String text = toHtml((Spanned) charSequence);
+            return fromHtml(replaceIcons(icon, new StringBuilder(text)).toString());
+        }
+        String text = charSequence.toString();
+        return replaceIcons(icon, new StringBuilder(text));
+    }
+
+    public static void setIcon(TextView textView, IconValue value) {
+        textView.setTypeface(getTypeface(textView.getContext(), value.getTtfFilename()));
+        textView.setText(valueOf(value.character));
+    }
+
+    /**
+     * The typeface that contains FontAwesome icons.
+     * @param context The application or activity context.
+     * @return the typeface, or null if something goes wrong.
+     */
+    public static Typeface getTypeface(Context context) {
+        return getTypeface(context, FONTAWESOME_TTF_FILE);
+    }
+
+    public static Typeface getTypeface(Context context, String ttfFilename) {
+        Typeface typeface = typefaces.get(ttfFilename);
+        if (typeface == null) {
+            try {
+                typeface = Typeface.createFromFile(resourceToFile(context, ttfFilename));
+                typefaces.put(ttfFilename, typeface);
+            } catch (IOException e) {
+                return null;
+            }
+        }
+        return typeface;
+    }
+
+    public enum IconValue implements BaseIconValue {
+        fa_500px('\uf26e'),
+        fa_adjust('\uf042'),
+        fa_adn('\uf170'),
+        fa_align_center('\uf037'),
+        fa_align_justify('\uf039'),
+        fa_align_left('\uf036'),
+        fa_align_right('\uf038'),
+        fa_amazon('\uf270'),
+        fa_ambulance('\uf0f9'),
+        fa_anchor('\uf13d'),
+        fa_android('\uf17b'),
+        fa_angellist('\uf209'),
+        fa_angle_double_down('\uf103'),
+        fa_angle_double_left('\uf100'),
+        fa_angle_double_right('\uf101'),
+        fa_angle_double_up('\uf102'),
+        fa_angle_down('\uf107'),
+        fa_angle_left('\uf104'),
+        fa_angle_right('\uf105'),
+        fa_angle_up('\uf106'),
+        fa_apple('\uf179'),
+        fa_archive('\uf187'),
+        fa_area_chart('\uf1fe'),
+        fa_arrow_circle_down('\uf0ab'),
+        fa_arrow_circle_left('\uf0a8'),
+        fa_arrow_circle_o_down('\uf01a'),
+        fa_arrow_circle_o_left('\uf190'),
+        fa_arrow_circle_o_right('\uf18e'),
+        fa_arrow_circle_o_up('\uf01b'),
+        fa_arrow_circle_right('\uf0a9'),
+        fa_arrow_circle_up('\uf0aa'),
+        fa_arrow_down('\uf063'),
+        fa_arrow_left('\uf060'),
+        fa_arrow_right('\uf061'),
+        fa_arrow_up('\uf062'),
+        fa_arrows('\uf047'),
+        fa_arrows_alt('\uf0b2'),
+        fa_arrows_h('\uf07e'),
+        fa_arrows_v('\uf07d'),
+        fa_asterisk('\uf069'),
+        fa_at('\uf1fa'),
+        fa_automobile('\uf1b9'),
+        fa_backward('\uf04a'),
+        fa_balance_scale('\uf24e'),
+        fa_ban('\uf05e'),
+        fa_bank('\uf19c'),
+        fa_bar_chart('\uf080'),
+        fa_bar_chart_o('\uf080'),
+        fa_barcode('\uf02a'),
+        fa_bars('\uf0c9'),
+        fa_battery_0('\uf244'),
+        fa_battery_1('\uf243'),
+        fa_battery_2('\uf242'),
+        fa_battery_3('\uf241'),
+        fa_battery_4('\uf240'),
+        fa_battery_empty('\uf244'),
+        fa_battery_full('\uf240'),
+        fa_battery_half('\uf242'),
+        fa_battery_quarter('\uf243'),
+        fa_battery_three_quarters('\uf241'),
+        fa_bed('\uf236'),
+        fa_beer('\uf0fc'),
+        fa_behance('\uf1b4'),
+        fa_behance_square('\uf1b5'),
+        fa_bell('\uf0f3'),
+        fa_bell_o('\uf0a2'),
+        fa_bell_slash('\uf1f6'),
+        fa_bell_slash_o('\uf1f7'),
+        fa_bicycle('\uf206'),
+        fa_binoculars('\uf1e5'),
+        fa_birthday_cake('\uf1fd'),
+        fa_bitbucket('\uf171'),
+        fa_bitbucket_square('\uf172'),
+        fa_bitcoin('\uf15a'),
+        fa_black_tie('\uf27e'),
+        fa_bold('\uf032'),
+        fa_bolt('\uf0e7'),
+        fa_bomb('\uf1e2'),
+        fa_book('\uf02d'),
+        fa_bookmark('\uf02e'),
+        fa_bookmark_o('\uf097'),
+        fa_briefcase('\uf0b1'),
+        fa_btc('\uf15a'),
+        fa_bug('\uf188'),
+        fa_building('\uf1ad'),
+        fa_building_o('\uf0f7'),
+        fa_bullhorn('\uf0a1'),
+        fa_bullseye('\uf140'),
+        fa_bus('\uf207'),
+        fa_buysellads('\uf20d'),
+        fa_cab('\uf1ba'),
+        fa_calculator('\uf1ec'),
+        fa_calendar('\uf073'),
+        fa_calendar_check_o('\uf274'),
+        fa_calendar_minus_o('\uf272'),
+        fa_calendar_o('\uf133'),
+        fa_calendar_plus_o('\uf271'),
+        fa_calendar_times_o('\uf273'),
+        fa_camera('\uf030'),
+        fa_camera_retro('\uf083'),
+        fa_car('\uf1b9'),
+        fa_caret_down('\uf0d7'),
+        fa_caret_left('\uf0d9'),
+        fa_caret_right('\uf0da'),
+        fa_caret_square_o_down('\uf150'),
+        fa_caret_square_o_left('\uf191'),
+        fa_caret_square_o_right('\uf152'),
+        fa_caret_square_o_up('\uf151'),
+        fa_caret_up('\uf0d8'),
+        fa_cart_arrow_down('\uf218'),
+        fa_cart_plus('\uf217'),
+        fa_cc('\uf20a'),
+        fa_cc_amex('\uf1f3'),
+        fa_cc_diners_club('\uf24c'),
+        fa_cc_discover('\uf1f2'),
+        fa_cc_jcb('\uf24b'),
+        fa_cc_mastercard('\uf1f1'),
+        fa_cc_paypal('\uf1f4'),
+        fa_cc_stripe('\uf1f5'),
+        fa_cc_visa('\uf1f0'),
+        fa_certificate('\uf0a3'),
+        fa_chain('\uf0c1'),
+        fa_chain_broken('\uf127'),
+        fa_check('\uf00c'),
+        fa_check_circle('\uf058'),
+        fa_check_circle_o('\uf05d'),
+        fa_check_square('\uf14a'),
+        fa_check_square_o('\uf046'),
+        fa_chevron_circle_down('\uf13a'),
+        fa_chevron_circle_left('\uf137'),
+        fa_chevron_circle_right('\uf138'),
+        fa_chevron_circle_up('\uf139'),
+        fa_chevron_down('\uf078'),
+        fa_chevron_left('\uf053'),
+        fa_chevron_right('\uf054'),
+        fa_chevron_up('\uf077'),
+        fa_child('\uf1ae'),
+        fa_chrome('\uf268'),
+        fa_circle('\uf111'),
+        fa_circle_o('\uf10c'),
+        fa_circle_o_notch('\uf1ce'),
+        fa_circle_thin('\uf1db'),
+        fa_clipboard('\uf0ea'),
+        fa_clock_o('\uf017'),
+        fa_clone('\uf24d'),
+        fa_close('\uf00d'),
+        fa_cloud('\uf0c2'),
+        fa_cloud_download('\uf0ed'),
+        fa_cloud_upload('\uf0ee'),
+        fa_cny('\uf157'),
+        fa_code('\uf121'),
+        fa_code_fork('\uf126'),
+        fa_codepen('\uf1cb'),
+        fa_coffee('\uf0f4'),
+        fa_cog('\uf013'),
+        fa_cogs('\uf085'),
+        fa_columns('\uf0db'),
+        fa_comment('\uf075'),
+        fa_comment_o('\uf0e5'),
+        fa_commenting('\uf27a'),
+        fa_commenting_o('\uf27b'),
+        fa_comments('\uf086'),
+        fa_comments_o('\uf0e6'),
+        fa_compass('\uf14e'),
+        fa_compress('\uf066'),
+        fa_connectdevelop('\uf20e'),
+        fa_contao('\uf26d'),
+        fa_copy('\uf0c5'),
+        fa_copyright('\uf1f9'),
+        fa_creative_commons('\uf25e'),
+        fa_credit_card('\uf09d'),
+        fa_crop('\uf125'),
+        fa_crosshairs('\uf05b'),
+        fa_css3('\uf13c'),
+        fa_cube('\uf1b2'),
+        fa_cubes('\uf1b3'),
+        fa_cut('\uf0c4'),
+        fa_cutlery('\uf0f5'),
+        fa_dashboard('\uf0e4'),
+        fa_dashcube('\uf210'),
+        fa_database('\uf1c0'),
+        fa_dedent('\uf03b'),
+        fa_delicious('\uf1a5'),
+        fa_desktop('\uf108'),
+        fa_deviantart('\uf1bd'),
+        fa_diamond('\uf219'),
+        fa_digg('\uf1a6'),
+        fa_dollar('\uf155'),
+        fa_dot_circle_o('\uf192'),
+        fa_download('\uf019'),
+        fa_dribbble('\uf17d'),
+        fa_dropbox('\uf16b'),
+        fa_drupal('\uf1a9'),
+        fa_edit('\uf044'),
+        fa_eject('\uf052'),
+        fa_ellipsis_h('\uf141'),
+        fa_ellipsis_v('\uf142'),
+        fa_empire('\uf1d1'),
+        fa_envelope('\uf0e0'),
+        fa_envelope_o('\uf003'),
+        fa_envelope_square('\uf199'),
+        fa_eraser('\uf12d'),
+        fa_eur('\uf153'),
+        fa_euro('\uf153'),
+        fa_exchange('\uf0ec'),
+        fa_exclamation('\uf12a'),
+        fa_exclamation_circle('\uf06a'),
+        fa_exclamation_triangle('\uf071'),
+        fa_expand('\uf065'),
+        fa_expeditedssl('\uf23e'),
+        fa_external_link('\uf08e'),
+        fa_external_link_square('\uf14c'),
+        fa_eye('\uf06e'),
+        fa_eye_slash('\uf070'),
+        fa_eyedropper('\uf1fb'),
+        fa_facebook('\uf09a'),
+        fa_facebook_f('\uf09a'),
+        fa_facebook_official('\uf230'),
+        fa_facebook_square('\uf082'),
+        fa_fast_backward('\uf049'),
+        fa_fast_forward('\uf050'),
+        fa_fax('\uf1ac'),
+        fa_feed('\uf09e'),
+        fa_female('\uf182'),
+        fa_fighter_jet('\uf0fb'),
+        fa_file('\uf15b'),
+        fa_file_archive_o('\uf1c6'),
+        fa_file_audio_o('\uf1c7'),
+        fa_file_code_o('\uf1c9'),
+        fa_file_excel_o('\uf1c3'),
+        fa_file_image_o('\uf1c5'),
+        fa_file_movie_o('\uf1c8'),
+        fa_file_o('\uf016'),
+        fa_file_pdf_o('\uf1c1'),
+        fa_file_photo_o('\uf1c5'),
+        fa_file_picture_o('\uf1c5'),
+        fa_file_powerpoint_o('\uf1c4'),
+        fa_file_sound_o('\uf1c7'),
+        fa_file_text('\uf15c'),
+        fa_file_text_o('\uf0f6'),
+        fa_file_video_o('\uf1c8'),
+        fa_file_word_o('\uf1c2'),
+        fa_file_zip_o('\uf1c6'),
+        fa_files_o('\uf0c5'),
+        fa_film('\uf008'),
+        fa_filter('\uf0b0'),
+        fa_fire('\uf06d'),
+        fa_fire_extinguisher('\uf134'),
+        fa_firefox('\uf269'),
+        fa_flag('\uf024'),
+        fa_flag_checkered('\uf11e'),
+        fa_flag_o('\uf11d'),
+        fa_flash('\uf0e7'),
+        fa_flask('\uf0c3'),
+        fa_flickr('\uf16e'),
+        fa_floppy_o('\uf0c7'),
+        fa_folder('\uf07b'),
+        fa_folder_o('\uf114'),
+        fa_folder_open('\uf07c'),
+        fa_folder_open_o('\uf115'),
+        fa_font('\uf031'),
+        fa_fonticons('\uf280'),
+        fa_forumbee('\uf211'),
+        fa_forward('\uf04e'),
+        fa_foursquare('\uf180'),
+        fa_frown_o('\uf119'),
+        fa_futbol_o('\uf1e3'),
+        fa_gamepad('\uf11b'),
+        fa_gavel('\uf0e3'),
+        fa_gbp('\uf154'),
+        fa_ge('\uf1d1'),
+        fa_gear('\uf013'),
+        fa_gears('\uf085'),
+        fa_genderless('\uf22d'),
+        fa_get_pocket('\uf265'),
+        fa_gg('\uf260'),
+        fa_gg_circle('\uf261'),
+        fa_gift('\uf06b'),
+        fa_git('\uf1d3'),
+        fa_git_square('\uf1d2'),
+        fa_github('\uf09b'),
+        fa_github_alt('\uf113'),
+        fa_github_square('\uf092'),
+        fa_gittip('\uf184'),
+        fa_glass('\uf000'),
+        fa_globe('\uf0ac'),
+        fa_google('\uf1a0'),
+        fa_google_plus('\uf0d5'),
+        fa_google_plus_square('\uf0d4'),
+        fa_google_wallet('\uf1ee'),
+        fa_graduation_cap('\uf19d'),
+        fa_gratipay('\uf184'),
+        fa_group('\uf0c0'),
+        fa_h_square('\uf0fd'),
+        fa_hacker_news('\uf1d4'),
+        fa_hand_grab_o('\uf255'),
+        fa_hand_lizard_o('\uf258'),
+        fa_hand_o_down('\uf0a7'),
+        fa_hand_o_left('\uf0a5'),
+        fa_hand_o_right('\uf0a4'),
+        fa_hand_o_up('\uf0a6'),
+        fa_hand_paper_o('\uf256'),
+        fa_hand_peace_o('\uf25b'),
+        fa_hand_pointer_o('\uf25a'),
+        fa_hand_rock_o('\uf255'),
+        fa_hand_scissors_o('\uf257'),
+        fa_hand_spock_o('\uf259'),
+        fa_hand_stop_o('\uf256'),
+        fa_hdd_o('\uf0a0'),
+        fa_header('\uf1dc'),
+        fa_headphones('\uf025'),
+        fa_heart('\uf004'),
+        fa_heart_o('\uf08a'),
+        fa_heartbeat('\uf21e'),
+        fa_history('\uf1da'),
+        fa_home('\uf015'),
+        fa_hospital_o('\uf0f8'),
+        fa_hotel('\uf236'),
+        fa_hourglass('\uf254'),
+        fa_hourglass_1('\uf251'),
+        fa_hourglass_2('\uf252'),
+        fa_hourglass_3('\uf253'),
+        fa_hourglass_end('\uf253'),
+        fa_hourglass_half('\uf252'),
+        fa_hourglass_o('\uf250'),
+        fa_hourglass_start('\uf251'),
+        fa_houzz('\uf27c'),
+        fa_html5('\uf13b'),
+        fa_i_cursor('\uf246'),
+        fa_ils('\uf20b'),
+        fa_image('\uf03e'),
+        fa_inbox('\uf01c'),
+        fa_indent('\uf03c'),
+        fa_industry('\uf275'),
+        fa_info('\uf129'),
+        fa_info_circle('\uf05a'),
+        fa_inr('\uf156'),
+        fa_instagram('\uf16d'),
+        fa_institution('\uf19c'),
+        fa_internet_explorer('\uf26b'),
+        fa_intersex('\uf224'),
+        fa_ioxhost('\uf208'),
+        fa_italic('\uf033'),
+        fa_joomla('\uf1aa'),
+        fa_jpy('\uf157'),
+        fa_jsfiddle('\uf1cc'),
+        fa_key('\uf084'),
+        fa_keyboard_o('\uf11c'),
+        fa_krw('\uf159'),
+        fa_language('\uf1ab'),
+        fa_laptop('\uf109'),
+        fa_lastfm('\uf202'),
+        fa_lastfm_square('\uf203'),
+        fa_leaf('\uf06c'),
+        fa_leanpub('\uf212'),
+        fa_legal('\uf0e3'),
+        fa_lemon_o('\uf094'),
+        fa_level_down('\uf149'),
+        fa_level_up('\uf148'),
+        fa_life_bouy('\uf1cd'),
+        fa_life_buoy('\uf1cd'),
+        fa_life_ring('\uf1cd'),
+        fa_life_saver('\uf1cd'),
+        fa_lightbulb_o('\uf0eb'),
+        fa_line_chart('\uf201'),
+        fa_link('\uf0c1'),
+        fa_linkedin('\uf0e1'),
+        fa_linkedin_square('\uf08c'),
+        fa_linux('\uf17c'),
+        fa_list('\uf03a'),
+        fa_list_alt('\uf022'),
+        fa_list_ol('\uf0cb'),
+        fa_list_ul('\uf0ca'),
+        fa_location_arrow('\uf124'),
+        fa_lock('\uf023'),
+        fa_long_arrow_down('\uf175'),
+        fa_long_arrow_left('\uf177'),
+        fa_long_arrow_right('\uf178'),
+        fa_long_arrow_up('\uf176'),
+        fa_magic('\uf0d0'),
+        fa_magnet('\uf076'),
+        fa_mail_forward('\uf064'),
+        fa_mail_reply('\uf112'),
+        fa_mail_reply_all('\uf122'),
+        fa_male('\uf183'),
+        fa_map('\uf279'),
+        fa_map_marker('\uf041'),
+        fa_map_o('\uf278'),
+        fa_map_pin('\uf276'),
+        fa_map_signs('\uf277'),
+        fa_mars('\uf222'),
+        fa_mars_double('\uf227'),
+        fa_mars_stroke('\uf229'),
+        fa_mars_stroke_h('\uf22b'),
+        fa_mars_stroke_v('\uf22a'),
+        fa_maxcdn('\uf136'),
+        fa_meanpath('\uf20c'),
+        fa_medium('\uf23a'),
+        fa_medkit('\uf0fa'),
+        fa_meh_o('\uf11a'),
+        fa_mercury('\uf223'),
+        fa_microphone('\uf130'),
+        fa_microphone_slash('\uf131'),
+        fa_minus('\uf068'),
+        fa_minus_circle('\uf056'),
+        fa_minus_square('\uf146'),
+        fa_minus_square_o('\uf147'),
+        fa_mobile('\uf10b'),
+        fa_mobile_phone('\uf10b'),
+        fa_money('\uf0d6'),
+        fa_moon_o('\uf186'),
+        fa_mortar_board('\uf19d'),
+        fa_motorcycle('\uf21c'),
+        fa_mouse_pointer('\uf245'),
+        fa_music('\uf001'),
+        fa_navicon('\uf0c9'),
+        fa_neuter('\uf22c'),
+        fa_newspaper_o('\uf1ea'),
+        fa_object_group('\uf247'),
+        fa_object_ungroup('\uf248'),
+        fa_odnoklassniki('\uf263'),
+        fa_odnoklassniki_square('\uf264'),
+        fa_opencart('\uf23d'),
+        fa_openid('\uf19b'),
+        fa_opera('\uf26a'),
+        fa_optin_monster('\uf23c'),
+        fa_outdent('\uf03b'),
+        fa_pagelines('\uf18c'),
+        fa_paint_brush('\uf1fc'),
+        fa_paper_plane('\uf1d8'),
+        fa_paper_plane_o('\uf1d9'),
+        fa_paperclip('\uf0c6'),
+        fa_paragraph('\uf1dd'),
+        fa_paste('\uf0ea'),
+        fa_pause('\uf04c'),
+        fa_paw('\uf1b0'),
+        fa_paypal('\uf1ed'),
+        fa_pencil('\uf040'),
+        fa_pencil_square('\uf14b'),
+        fa_pencil_square_o('\uf044'),
+        fa_phone('\uf095'),
+        fa_phone_square('\uf098'),
+        fa_photo('\uf03e'),
+        fa_picture_o('\uf03e'),
+        fa_pie_chart('\uf200'),
+        fa_pied_piper('\uf1a7'),
+        fa_pied_piper_alt('\uf1a8'),
+        fa_pinterest('\uf0d2'),
+        fa_pinterest_p('\uf231'),
+        fa_pinterest_square('\uf0d3'),
+        fa_plane('\uf072'),
+        fa_play('\uf04b'),
+        fa_play_circle('\uf144'),
+        fa_play_circle_o('\uf01d'),
+        fa_plug('\uf1e6'),
+        fa_plus('\uf067'),
+        fa_plus_circle('\uf055'),
+        fa_plus_square('\uf0fe'),
+        fa_plus_square_o('\uf196'),
+        fa_power_off('\uf011'),
+        fa_print('\uf02f'),
+        fa_puzzle_piece('\uf12e'),
+        fa_qq('\uf1d6'),
+        fa_qrcode('\uf029'),
+        fa_question('\uf128'),
+        fa_question_circle('\uf059'),
+        fa_quote_left('\uf10d'),
+        fa_quote_right('\uf10e'),
+        fa_ra('\uf1d0'),
+        fa_random('\uf074'),
+        fa_rebel('\uf1d0'),
+        fa_recycle('\uf1b8'),
+        fa_reddit('\uf1a1'),
+        fa_reddit_square('\uf1a2'),
+        fa_refresh('\uf021'),
+        fa_registered('\uf25d'),
+        fa_remove('\uf00d'),
+        fa_renren('\uf18b'),
+        fa_reorder('\uf0c9'),
+        fa_repeat('\uf01e'),
+        fa_reply('\uf112'),
+        fa_reply_all('\uf122'),
+        fa_retweet('\uf079'),
+        fa_rmb('\uf157'),
+        fa_road('\uf018'),
+        fa_rocket('\uf135'),
+        fa_rotate_left('\uf0e2'),
+        fa_rotate_right('\uf01e'),
+        fa_rouble('\uf158'),
+        fa_rss('\uf09e'),
+        fa_rss_square('\uf143'),
+        fa_rub('\uf158'),
+        fa_ruble('\uf158'),
+        fa_rupee('\uf156'),
+        fa_safari('\uf267'),
+        fa_save('\uf0c7'),
+        fa_scissors('\uf0c4'),
+        fa_search('\uf002'),
+        fa_search_minus('\uf010'),
+        fa_search_plus('\uf00e'),
+        fa_sellsy('\uf213'),
+        fa_send('\uf1d8'),
+        fa_send_o('\uf1d9'),
+        fa_server('\uf233'),
+        fa_share('\uf064'),
+        fa_share_alt('\uf1e0'),
+        fa_share_alt_square('\uf1e1'),
+        fa_share_square('\uf14d'),
+        fa_share_square_o('\uf045'),
+        fa_shekel('\uf20b'),
+        fa_sheqel('\uf20b'),
+        fa_shield('\uf132'),
+        fa_ship('\uf21a'),
+        fa_shirtsinbulk('\uf214'),
+        fa_shopping_cart('\uf07a'),
+        fa_sign_in('\uf090'),
+        fa_sign_out('\uf08b'),
+        fa_signal('\uf012'),
+        fa_simplybuilt('\uf215'),
+        fa_sitemap('\uf0e8'),
+        fa_skyatlas('\uf216'),
+        fa_skype('\uf17e'),
+        fa_slack('\uf198'),
+        fa_sliders('\uf1de'),
+        fa_slideshare('\uf1e7'),
+        fa_smile_o('\uf118'),
+        fa_soccer_ball_o('\uf1e3'),
+        fa_sort('\uf0dc'),
+        fa_sort_alpha_asc('\uf15d'),
+        fa_sort_alpha_desc('\uf15e'),
+        fa_sort_amount_asc('\uf160'),
+        fa_sort_amount_desc('\uf161'),
+        fa_sort_asc('\uf0de'),
+        fa_sort_desc('\uf0dd'),
+        fa_sort_down('\uf0dd'),
+        fa_sort_numeric_asc('\uf162'),
+        fa_sort_numeric_desc('\uf163'),
+        fa_sort_up('\uf0de'),
+        fa_soundcloud('\uf1be'),
+        fa_space_shuttle('\uf197'),
+        fa_spinner('\uf110'),
+        fa_spoon('\uf1b1'),
+        fa_spotify('\uf1bc'),
+        fa_square('\uf0c8'),
+        fa_square_o('\uf096'),
+        fa_stack_exchange('\uf18d'),
+        fa_stack_overflow('\uf16c'),
+        fa_star('\uf005'),
+        fa_star_half('\uf089'),
+        fa_star_half_empty('\uf123'),
+        fa_star_half_full('\uf123'),
+        fa_star_half_o('\uf123'),
+        fa_star_o('\uf006'),
+        fa_steam('\uf1b6'),
+        fa_steam_square('\uf1b7'),
+        fa_step_backward('\uf048'),
+        fa_step_forward('\uf051'),
+        fa_stethoscope('\uf0f1'),
+        fa_sticky_note('\uf249'),
+        fa_sticky_note_o('\uf24a'),
+        fa_stop('\uf04d'),
+        fa_street_view('\uf21d'),
+        fa_strikethrough('\uf0cc'),
+        fa_stumbleupon('\uf1a4'),
+        fa_stumbleupon_circle('\uf1a3'),
+        fa_subscript('\uf12c'),
+        fa_subway('\uf239'),
+        fa_suitcase('\uf0f2'),
+        fa_sun_o('\uf185'),
+        fa_superscript('\uf12b'),
+        fa_support('\uf1cd'),
+        fa_table('\uf0ce'),
+        fa_tablet('\uf10a'),
+        fa_tachometer('\uf0e4'),
+        fa_tag('\uf02b'),
+        fa_tags('\uf02c'),
+        fa_tasks('\uf0ae'),
+        fa_taxi('\uf1ba'),
+        fa_television('\uf26c'),
+        fa_tencent_weibo('\uf1d5'),
+        fa_terminal('\uf120'),
+        fa_text_height('\uf034'),
+        fa_text_width('\uf035'),
+        fa_th('\uf00a'),
+        fa_th_large('\uf009'),
+        fa_th_list('\uf00b'),
+        fa_thumb_tack('\uf08d'),
+        fa_thumbs_down('\uf165'),
+        fa_thumbs_o_down('\uf088'),
+        fa_thumbs_o_up('\uf087'),
+        fa_thumbs_up('\uf164'),
+        fa_ticket('\uf145'),
+        fa_times('\uf00d'),
+        fa_times_circle('\uf057'),
+        fa_times_circle_o('\uf05c'),
+        fa_tint('\uf043'),
+        fa_toggle_down('\uf150'),
+        fa_toggle_left('\uf191'),
+        fa_toggle_off('\uf204'),
+        fa_toggle_on('\uf205'),
+        fa_toggle_right('\uf152'),
+        fa_toggle_up('\uf151'),
+        fa_trademark('\uf25c'),
+        fa_train('\uf238'),
+        fa_transgender('\uf224'),
+        fa_transgender_alt('\uf225'),
+        fa_trash('\uf1f8'),
+        fa_trash_o('\uf014'),
+        fa_tree('\uf1bb'),
+        fa_trello('\uf181'),
+        fa_tripadvisor('\uf262'),
+        fa_trophy('\uf091'),
+        fa_truck('\uf0d1'),
+        fa_try('\uf195'),
+        fa_tty('\uf1e4'),
+        fa_tumblr('\uf173'),
+        fa_tumblr_square('\uf174'),
+        fa_turkish_lira('\uf195'),
+        fa_tv('\uf26c'),
+        fa_twitch('\uf1e8'),
+        fa_twitter('\uf099'),
+        fa_twitter_square('\uf081'),
+        fa_umbrella('\uf0e9'),
+        fa_underline('\uf0cd'),
+        fa_undo('\uf0e2'),
+        fa_university('\uf19c'),
+        fa_unlink('\uf127'),
+        fa_unlock('\uf09c'),
+        fa_unlock_alt('\uf13e'),
+        fa_unsorted('\uf0dc'),
+        fa_upload('\uf093'),
+        fa_usd('\uf155'),
+        fa_user('\uf007'),
+        fa_user_md('\uf0f0'),
+        fa_user_plus('\uf234'),
+        fa_user_secret('\uf21b'),
+        fa_user_times('\uf235'),
+        fa_users('\uf0c0'),
+        fa_venus('\uf221'),
+        fa_venus_double('\uf226'),
+        fa_venus_mars('\uf228'),
+        fa_viacoin('\uf237'),
+        fa_video_camera('\uf03d'),
+        fa_vimeo('\uf27d'),
+        fa_vimeo_square('\uf194'),
+        fa_vine('\uf1ca'),
+        fa_vk('\uf189'),
+        fa_volume_down('\uf027'),
+        fa_volume_off('\uf026'),
+        fa_volume_up('\uf028'),
+        fa_warning('\uf071'),
+        fa_wechat('\uf1d7'),
+        fa_weibo('\uf18a'),
+        fa_weixin('\uf1d7'),
+        fa_whatsapp('\uf232'),
+        fa_wheelchair('\uf193'),
+        fa_wifi('\uf1eb'),
+        fa_wikipedia_w('\uf266'),
+        fa_windows('\uf17a'),
+        fa_won('\uf159'),
+        fa_wordpress('\uf19a'),
+        fa_wrench('\uf0ad'),
+        fa_xing('\uf168'),
+        fa_xing_square('\uf169'),
+        fa_y_combinator('\uf23b'),
+        fa_y_combinator_square('\uf1d4'),
+        fa_yahoo('\uf19e'),
+        fa_yc('\uf23b'),
+        fa_yc_square('\uf1d4'),
+        fa_yelp('\uf1e9'),
+        fa_yen('\uf157'),
+        fa_youtube('\uf167'),
+        fa_youtube_play('\uf16a'),
+        fa_youtube_square('\uf166');
+
+        char character;
+
+        IconValue(char character) {
+            this.character = character;
+        }
+
+        public String formattedName() {
+            return "{" + name() + "}";
+        }
+
+        @Override
+        public char character() {
+            return character;
+        }
+
+        @Override
+        public String getTtfFilename() {
+            return FONTAWESOME_TTF_FILE;
+        }
+
+        @Override
+        public String getPrefix() {
+            return "fa";
+        }
+
+        @Override
+        public IconValue iconFrom(String value) {
+            return IconValue.valueOf(value);
+        }
+    }
+}
+
+
+File: android-iconify/src/main/java/com/joanzapata/android/iconify/Utils.java
+/**
+ * Copyright 2013 Joan Zapata
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * It uses FontAwesome font, licensed under OFL 1.1, which is compatible
+ * with this library's license.
+ *
+ *     http://scripts.sil.org/cms/scripts/render_download.php?format=file&media_id=OFL_plaintext&filename=OFL.txt
+ */
+package com.joanzapata.android.iconify;
+
+import android.R;
+import android.content.Context;
+import android.util.Log;
+
+import java.io.BufferedOutputStream;
+import java.io.Closeable;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+
+import static android.util.TypedValue.*;
+import static com.joanzapata.android.iconify.Iconify.IconValue;
+
+class Utils {
+
+    public static final String ICON_FONT_FOLDER = "icon_tmp";
+
+    private Utils() {
+        // Prevents instantiation
+    }
+
+    static int convertDpToPx(Context context, float dp) {
+        return (int) applyDimension(COMPLEX_UNIT_DIP, dp,
+                context.getResources().getDisplayMetrics());
+    }
+
+    static boolean isEnabled(int[] stateSet) {
+        for (int state : stateSet)
+            if (state == R.attr.state_enabled)
+                return true;
+        return false;
+    }
+
+    static File resourceToFile(Context context, String resourceName) throws IOException {
+        File f = null;
+        if(context.getFilesDir() == null)
+            f = new File(context.getCacheDir(), ICON_FONT_FOLDER);
+        else
+            f = new File(context.getFilesDir(), ICON_FONT_FOLDER);
+        if (!f.exists())
+            if (!f.mkdirs()) {
+                Log.e(Iconify.TAG, "Font folder creation failed");
+                throw new IllegalStateException("Cannot create Iconify font destination folder");
+            }
+
+        String filename = resourceName;
+        int separatorIndex = resourceName.indexOf(':');
+        if (separatorIndex != -1) {
+            filename = resourceName.substring(separatorIndex + 1);
+        }
+
+        File outPath = new File(f, filename);
+        if (outPath.exists()) return outPath;
+
+        InputStream inputStream = null;
+        try {
+            if (resourceName.startsWith("asset:")) {
+                inputStream = context.getAssets().open(filename);
+                copy(inputStream, outPath);
+                return outPath;
+            }
+
+            inputStream = Iconify.class.getClassLoader().getResourceAsStream(filename);
+            copy(inputStream, outPath);
+            return outPath;
+        } finally {
+            closeQuietly(inputStream);
+        }
+    }
+
+    private static void copy(InputStream inputStream, File outputFile) throws IOException {
+        BufferedOutputStream bos = null;
+        try {
+            byte[] buffer = new byte[inputStream.available()];
+            bos = new BufferedOutputStream(new FileOutputStream(outputFile));
+            int l;
+            while ((l = inputStream.read(buffer)) > 0) {
+                bos.write(buffer, 0, l);
+            }
+        } finally {
+            closeQuietly(bos);
+            closeQuietly(inputStream);
+        }
+    }
+
+    private static void closeQuietly(Closeable closeable) {
+        if (closeable != null) {
+            try {
+                closeable.close();
+            } catch (IOException e) {
+                // Don't care
+            }
+        }
+    }
+
+    public static StringBuilder replaceIcons(StringBuilder text) {
+        return replaceIcons(IconValue.fa_500px, text);
+    }
+
+    /**
+     * Replace icons placeholder by the appropriate character
+     *
+     * @param icon an arbitrary instance of {@link BaseIconValue} in order to have a reference on the icon font to use
+     * @param text the text to process
+     * @return the processed text
+     */
+    public static <T extends Enum<T> & BaseIconValue> StringBuilder replaceIcons(T icon, StringBuilder text) {
+        int startIndex = text.indexOf("{" + icon.getPrefix());
+        if (startIndex == -1) {
+            return text;
+        }
+
+        int endIndex = text.indexOf("}", startIndex) + 1;
+
+        String iconString = text.substring(startIndex + 1, endIndex - 1);
+        try {
+            BaseIconValue value = icon.iconFrom(iconString.replaceAll("-", "_"));
+            String iconValue = String.valueOf(value.character());
+
+            text = text.replace(startIndex, endIndex, iconValue);
+            return replaceIcons(icon, text);
+        } catch (IllegalArgumentException e) {
+            Log.w(Iconify.TAG, "Wrong icon name: " + iconString);
+            return text;
+        }
+    }
+}
+
+
+File: android-iconify/src/test/java/com/joanzapata/android/iconify/UtilsTest.java
+/**
+ * Copyright 2013 Joan Zapata
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * It uses FontAwesome font, licensed under OFL 1.1, which is compatible
+ * with this library's license.
+ *
+ *     http://scripts.sil.org/cms/scripts/render_download.php?format=file&media_id=OFL_plaintext&filename=OFL.txt
+ */
+package com.joanzapata.android.iconify;
+
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.annotation.Config;
+
+import static com.joanzapata.android.iconify.Iconify.IconValue.*;
+import static org.junit.Assert.assertEquals;
+
+@Config(manifest = Config.NONE)
+@RunWith(RobolectricTestRunner.class)
+public class UtilsTest {
+
+    @Test
+    public void test_replaceIcons() {
+        test("A{fa_adjust}A", "A" + fa_adjust.character + "A");
+    }
+
+    @Test
+    public void test_replaceIcons_noIcons() {
+        test("A A", "A A");
+    }
+
+    @Test
+    public void test_replaceIcons_manyIcons() {
+        test("A{fa_adjust}A{fa_adn}A", "A" + fa_adjust.character + "A" + fa_adn.character + "A");
+    }
+
+    @Test
+    public void test_replaceIcons_withDash() {
+        test("A{fa-adjust}A{fa-adn}A", "A" + fa_adjust.character + "A" + fa_adn.character + "A");
+    }
+
+    @Test
+    public void test_replaceIcons_wrong() {
+        test("A{icon-okA{icon-camera}A", "A{icon-okA{icon-camera}A");
+    }
+
+    @Test
+    public void test_replaceIcons_empty() {
+        test("A{}A", "A{}A");
+    }
+
+    private void test(String in, String out) {
+        assertEquals(out, Utils.replaceIcons(new StringBuilder(in)).toString());
+    }
+
+}
