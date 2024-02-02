@@ -13,7 +13,7 @@ unique_refactoring_types = ["Extract Method", "Inline Method", "Rename Package",
 label2id = {label: i for i, label in enumerate(unique_refactoring_types)}
 id2label = {i: label for i, label in enumerate(unique_refactoring_types)}
 
-checkpoint = 'Salesforce/codet5p-770m'  # ALT: Salesforce/codet5p-770m(-py) or Salesforce/codet5-small
+checkpoint = 'Salesforce/codet5-small'  # ALT: Salesforce/codet5p-770m(-py) or Salesforce/codet5-small
 tokenizer = AutoTokenizer.from_pretrained(checkpoint)
 model = AutoModelForSequenceClassification.from_pretrained(checkpoint,
                                               torch_dtype=torch.float32,
@@ -21,9 +21,10 @@ model = AutoModelForSequenceClassification.from_pretrained(checkpoint,
                                               num_labels=len(unique_refactoring_types),
                                               id2label=id2label,
                                               label2id=label2id,)
+print(f"Model Size: {sum(p.numel() for p in model.parameters())/1000000} million parameters")
 accuracy = evaluate.load("accuracy")
 prompt = ""
-max_length = 32
+max_length = 4578
 
 
 # adds prompt + tokenizes input
@@ -56,7 +57,7 @@ for filename in os.listdir(data_dir):
 
         with open(filepath, "r", encoding="utf-8") as file:
             lines = file.readlines()
-            if not 400 > len(lines) > 3:
+            if not 400 >= len(lines) > 3:
                 pass
                 # print(f"Skipping empty/big file: {filepath}")
             else:
@@ -70,6 +71,7 @@ for filename in os.listdir(data_dir):
 print(f"Used {file_count} files for fine-tuning/evaluation")
 
 
+# computes the length of the longest tokenized source code file
 def compute_max_length():
     max_input_length = 0
     for code in examples["code"]:
@@ -111,7 +113,7 @@ def compute_metrics(p):
 
 
 def main(finetune):
-    batch_size = 8
+    batch_size = 1
     model_name = checkpoint.split("/")[-1]
     args = TrainingArguments(
         f"{model_name}-finetuned-bugs2fix",
@@ -119,6 +121,7 @@ def main(finetune):
         learning_rate=2e-5,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
+        gradient_accumulation_steps=1,
         weight_decay=0.01,
         save_total_limit=3,
         num_train_epochs=1,
@@ -127,13 +130,12 @@ def main(finetune):
     )
 
     data_collator = DataCollatorWithPadding(tokenizer)
-    combined_eval_dataset = tokenized_datasets["train"] if not finetune else tokenized_datasets["test"]
 
     trainer = Trainer(
         model=model,
         args=args,
         train_dataset=tokenized_datasets["train"],
-        eval_dataset=combined_eval_dataset,
+        eval_dataset=tokenized_datasets["test"],
         data_collator=data_collator,
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
