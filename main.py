@@ -13,7 +13,7 @@ unique_refactoring_types = ["Extract Method", "Inline Method", "Rename Package",
 label2id = {label: i for i, label in enumerate(unique_refactoring_types)}
 id2label = {i: label for i, label in enumerate(unique_refactoring_types)}
 
-checkpoint = 'Salesforce/codet5-small'  # ALT: Salesforce/codet5p-770m(-py) or Salesforce/codet5-small
+checkpoint = 'Salesforce/codet5-small'  # ALT: Salesforce/codet5p-770m(-py), a larger model
 tokenizer = AutoTokenizer.from_pretrained(checkpoint)
 model = AutoModelForSequenceClassification.from_pretrained(checkpoint,
                                               torch_dtype=torch.float32,
@@ -21,20 +21,30 @@ model = AutoModelForSequenceClassification.from_pretrained(checkpoint,
                                               num_labels=len(unique_refactoring_types),
                                               id2label=id2label,
                                               label2id=label2id,)
+
 print(f"Model Size: {sum(p.numel() for p in model.parameters())/1000000} million parameters")
 accuracy = evaluate.load("accuracy")
 prompt = ""
-max_length = 4578
 
 
-# adds prompt + tokenizes input
+# computes the length of the longest tokenized source code file
+def compute_max_length():
+    max_input_length = 0
+    for code in examples["code"]:
+        tokens = tokenizer(code, truncation=True, max_length=10000)
+        max_input_length = max(max_input_length, len(tokens['input_ids']))
+    return max_input_length
+
+
+# adds prompt if needed + tokenizes input
 def preprocess(samples, prefix=""):
+    max_input_length = compute_max_length()
     input_tokenized = tokenizer(
         [prefix + sample for sample in samples["code"]],
         return_tensors="pt",
         truncation=True,
         padding="max_length",
-        max_length=max_length,
+        max_length=max_input_length,
     )
 
     model_inputs = {
@@ -46,53 +56,55 @@ def preprocess(samples, prefix=""):
     return model_inputs
 
 
+# adjustable parameters
+LOC = 100
+fine_tune = False
+
+
 # loading in files
 data_dir = 'preprocess/data'
 examples = {"labels": [], "code": []}
 file_count = 0
 
-for filename in os.listdir(data_dir):
-    if filename.endswith(".md"):
-        filepath = os.path.join(data_dir, filename)
 
-        with open(filepath, "r", encoding="utf-8") as file:
-            lines = file.readlines()
-            if not 400 >= len(lines) > 3:
-                pass
-                # print(f"Skipping empty/big file: {filepath}")
-            else:
-                labels_line = lines[0].strip()
-                labels = eval(labels_line.split(":")[1].strip())  # assumes valid Python expression
+# read the files in a dictionary
+def read_files(dir, dataset):
+    global file_count
+    for filename in os.listdir(data_dir):
+        if filename.endswith(".md"):
+            filepath = os.path.join(dir, filename)
 
-                code = "".join(lines[1:])
-                examples["labels"].append(label2id[labels[0]])  # TODO: now we only use the first label
-                examples["code"].append(code)
-                file_count += 1
-print(f"Used {file_count} files for fine-tuning/evaluation")
+            with open(filepath, "r", encoding="utf-8") as file:
+                lines = file.readlines()
+                if not LOC >= len(lines) > 3:
+                    pass
+                    # print(f"Skipping empty/big file: {filepath}")
+                else:
+                    labels_line = lines[0].strip()
+                    labels = eval(labels_line.split(":")[1].strip())
 
-
-# computes the length of the longest tokenized source code file
-def compute_max_length():
-    max_input_length = 0
-    for code in examples["code"]:
-        tokens = tokenizer(code, truncation=True, max_length=max_length)
-        max_input_length = max(max_input_length, len(tokens['input_ids']))
-    return max_input_length
+                    code = "".join(lines[1:])
+                    dataset["labels"].append(label2id[labels[0]])  # uses first label
+                    dataset["code"].append(code)
+                    file_count += 1
+    print(f"Used {file_count} files for fine-tuning/evaluation")
+    return dataset
 
 
 # create Hugging Face Dataset
+examples = read_files(data_dir, examples)
 dataset = Dataset.from_dict(examples)
 dataset_dict = dataset.train_test_split(test_size=0.3)
 
 tokenized_datasets = dataset_dict.map(preprocess, batched=True)  # convert the whole dataset into tokens at once
 
 
-# will only be used at evaluation, takes an EvalPrediction and returns a dict{string:metric)
+# will only be used at evaluation, takes an EvalPrediction and returns a dict{string:metric}
 def compute_metrics(p):
-    predictions = np.argmax(p.predictions[0], axis=1)  # Assuming the first prediction is the main one
+    predictions = np.argmax(p.predictions[0], axis=1)
     true_labels = p.label_ids
 
-    # accuracy, precision, recall, F1-score
+    # accuracy, weighted precision, weighted recall, weighted F1-score
     accuracy = accuracy_score(true_labels, predictions)
     precision, recall, f1, _ = precision_recall_fscore_support(true_labels, predictions, average='weighted', zero_division=0)
 
@@ -148,5 +160,4 @@ def main(finetune):
 
 
 if __name__ == "__main__":
-    print(f"Max token length of files: {compute_max_length()}")
-    main(finetune=False)  # set to False for evaluation only
+    main(finetune=fine_tune)  # set to False for evaluation only
